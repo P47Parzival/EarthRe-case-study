@@ -19,6 +19,8 @@ Found by direct inspection of the primary CSV (`monitoring_checks_9d_seed101.csv
 - **Dedup key**: `(service_id, checked_at, agent)` — chosen because the spec ties duplicates to "identical" or "matching" rows sharing exactly this triple; first-seen row wins on a collision.
 - **Invalid status handling**: any status outside 100–599, or exactly `999`, is treated as a failed/invalid check — flagged, not deleted — so support/on-call can still see the row in the logs.
 - **Negative latency**: nulled and excluded from stats rather than clipped to 0, since clipping would fabricate a plausible-looking but false latency value.
+- **Upload body format**: the frontend sends the raw CSV as a `text/plain` request body rather than `multipart/form-data` — Vercel's Node functions auto-parse `text/plain` into a plain string (`req.body`), avoiding the need for a multipart-parsing dependency for a single-file upload.
+- **Repeat/duplicate uploads across files**: `/api/upload` uses `upsert(..., { onConflict: 'service_id,checked_at,agent', ignoreDuplicates: true })` instead of a plain insert. This makes re-uploading the same file (or an overlapping file) idempotent — matching rows are silently skipped instead of throwing a unique-constraint error that would fail the whole batch. Verified by running the same 9-day file through the pipeline twice: row count stayed at 4665 both times.
 
 ## Live URL + how to run/redeploy
 
