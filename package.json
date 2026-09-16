@@ -1,0 +1,10 @@
+{
+  "name": "sla-monitoring-dashboard-api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "dotenv": "^17.4.2"
+  }
+}
