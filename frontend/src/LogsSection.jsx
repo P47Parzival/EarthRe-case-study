@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LoadingState, ErrorState, EmptyState } from './ui.jsx'
 
 const PAGE_SIZE = 50
 
@@ -32,6 +33,7 @@ function LogsSection() {
   const [rangeStart, setRangeStart] = useState('')
   const [rangeEnd, setRangeEnd] = useState('')
   const [page, setPage] = useState(1)
+  const [sortAsc, setSortAsc] = useState(false)
 
   const [rows, setRows] = useState([])
   const [total, setTotal] = useState(0)
@@ -52,6 +54,7 @@ function LogsSection() {
         }
         params.set('page', String(page))
         params.set('pageSize', String(PAGE_SIZE))
+        params.set('order', sortAsc ? 'asc' : 'desc')
 
         const res = await fetch(`/api/logs?${params.toString()}`)
         const json = await res.json()
@@ -72,7 +75,7 @@ function LogsSection() {
     return () => {
       cancelled = true
     }
-  }, [mode, singleDate, rangeStart, rangeEnd, page])
+  }, [mode, singleDate, rangeStart, rangeEnd, page, sortAsc])
 
   function handleModeChange(next) {
     setMode(next)
@@ -148,11 +151,11 @@ function LogsSection() {
         )}
       </div>
 
-      {status === 'loading' && <p className="text-sm text-slate-500">Loading logs…</p>}
-      {status === 'error' && <p className="text-sm text-red-600">{errorMsg}</p>}
+      {status === 'loading' && <LoadingState label="Loading logs…" />}
+      {status === 'error' && <ErrorState message={errorMsg} />}
 
       {status === 'done' && rows.length === 0 && (
-        <p className="text-sm text-slate-500">No logs match this filter.</p>
+        <EmptyState message="No logs match this filter. Try a different date or range." />
       )}
 
       {status === 'done' && rows.length > 0 && (
@@ -161,7 +164,18 @@ function LogsSection() {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="text-left text-slate-500 border-b border-slate-200">
-                  <th className="py-2 pr-4">Timestamp (UTC)</th>
+                  <th className="py-2 pr-4">
+                    <button
+                      onClick={() => {
+                        setSortAsc((v) => !v)
+                        setPage(1)
+                      }}
+                      className="flex items-center gap-1 font-medium hover:text-slate-800"
+                      title="Toggle sort direction"
+                    >
+                      Timestamp (UTC) <span>{sortAsc ? '▲ oldest first' : '▼ newest first'}</span>
+                    </button>
+                  </th>
                   <th className="py-2 pr-4">Service</th>
                   <th className="py-2 pr-4">Status</th>
                   <th className="py-2 pr-4">Latency</th>
@@ -172,7 +186,9 @@ function LogsSection() {
                 {rows.map((r, i) => (
                   <tr
                     key={`${r.service_id}-${r.checked_at}-${r.agent}-${i}`}
-                    className="border-b border-slate-100 hover:bg-slate-50"
+                    className={`border-b border-slate-100 hover:bg-slate-100 transition-colors ${
+                      i % 2 === 1 ? 'bg-slate-50' : ''
+                    }`}
                   >
                     <td className="py-2 pr-4 text-slate-600">{formatTimestamp(r.checked_at)}</td>
                     <td className="py-2 pr-4 font-medium text-slate-800">{r.service_name}</td>

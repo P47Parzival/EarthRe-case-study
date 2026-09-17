@@ -1,4 +1,14 @@
 import { useState } from 'react'
+import { Spinner } from './ui.jsx'
+
+function SummaryStat({ label, value }) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-md px-3 py-2">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="text-base font-semibold text-slate-800">{value}</p>
+    </div>
+  )
+}
 
 function UploadScreen({ onUploaded }) {
   const [file, setFile] = useState(null)
@@ -29,41 +39,53 @@ function UploadScreen({ onUploaded }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-start justify-center p-8">
-      <div className="w-full max-w-xl bg-white rounded-lg shadow p-6 space-y-4">
-        <h1 className="text-xl font-semibold text-slate-800">SLA Monitoring — Upload</h1>
-        <p className="text-sm text-slate-500">
-          Upload a health-check CSV (columns: service_id, service_name, timestamp,
-          status_code, latency, latency_unit, agent, region).
-        </p>
+    <div className="flex items-start justify-center p-6 sm:p-10">
+      <div className="w-full max-w-xl bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-4">
+        <div>
+          <h1 className="text-lg font-semibold text-slate-800">Upload health-check CSV</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Columns expected: service_id, service_name, timestamp, status_code, latency,
+            latency_unit, agent, region.
+          </p>
+        </div>
 
         <input
           type="file"
           accept=".csv"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="block w-full text-sm text-slate-600 border border-slate-300 rounded p-2"
+          className="block w-full text-sm text-slate-600 border border-slate-300 rounded-md p-2 file:mr-3 file:px-3 file:py-1.5 file:rounded file:border-0 file:bg-slate-100 file:text-slate-700 file:text-sm hover:file:bg-slate-200"
         />
 
         <button
           onClick={handleUpload}
           disabled={!file || status === 'uploading'}
-          className="px-4 py-2 bg-blue-600 text-white rounded disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-blue-700"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
         >
+          {status === 'uploading' && <Spinner />}
           {status === 'uploading' ? 'Uploading…' : 'Upload'}
         </button>
 
-        {status === 'error' && <p className="text-sm text-red-600">{errorMsg}</p>}
+        {status === 'error' && (
+          <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
+            <span aria-hidden="true">⚠️</span>
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
         {status === 'done' && summary && (
-          <div className="border border-slate-200 rounded p-4 bg-slate-50 text-sm text-slate-700 space-y-1">
-            <p className="font-medium text-slate-800">Upload summary</p>
-            <p>Rows in file: {summary.total_rows_in}</p>
-            <p>Rows cleaned/inserted: {summary.rows_cleaned}</p>
-            <p>Duplicates removed: {summary.duplicates_removed}</p>
-            <p>Invalid/sentinel status rows: {summary.invalid_status_rows}</p>
-            <p>Latency nulls: {summary.latency_nulls}</p>
-            <p>Negative latencies excluded: {summary.negative_latencies_excluded}</p>
-            <p>Invalid timestamps excluded: {summary.invalid_timestamps_excluded}</p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-green-700">
+              <span aria-hidden="true">✅</span>
+              <span>Upload processed successfully</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <SummaryStat label="Rows in file" value={summary.total_rows_in} />
+              <SummaryStat label="Rows inserted" value={summary.rows_cleaned} />
+              <SummaryStat label="Duplicates removed" value={summary.duplicates_removed} />
+              <SummaryStat label="Invalid status rows" value={summary.invalid_status_rows} />
+              <SummaryStat label="Latency nulls" value={summary.latency_nulls} />
+              <SummaryStat label="Negative latencies" value={summary.negative_latencies_excluded} />
+            </div>
           </div>
         )}
       </div>

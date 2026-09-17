@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import LogsSection from './LogsSection.jsx'
+import { ChevronIcon, LoadingState, ErrorState, EmptyState } from './ui.jsx'
 
 function formatPct(value) {
   return value == null ? '—' : `${value.toFixed(2)}%`
@@ -24,20 +25,6 @@ function formatHour(iso) {
   return d.toUTCString().replace(':00 GMT', ':00 UTC')
 }
 
-function ChevronIcon({ open }) {
-  return (
-    <svg
-      className={`w-5 h-5 transition-transform ${open ? 'rotate-180' : ''}`}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-    </svg>
-  )
-}
-
 function SummaryCard({ label, value, sub }) {
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-4">
@@ -48,7 +35,7 @@ function SummaryCard({ label, value, sub }) {
   )
 }
 
-function Dashboard() {
+function Dashboard({ onGoToUpload }) {
   const [stats, setStats] = useState(null)
   const [status, setStatus] = useState('loading') // loading | done | error
   const [errorMsg, setErrorMsg] = useState('')
@@ -80,23 +67,31 @@ function Dashboard() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 space-y-6">
-      <div className="max-w-5xl mx-auto bg-white border border-slate-200 rounded-lg shadow-sm mb-6">
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="max-w-5xl mx-auto bg-white border border-slate-200 rounded-lg shadow-sm">
         <button
           onClick={() => setExpanded((e) => !e)}
           className="w-full flex items-center justify-between px-6 py-4 text-left"
+          aria-expanded={expanded}
         >
           <h2 className="text-lg font-semibold text-slate-800">Stats overview</h2>
-          <ChevronIcon open={expanded} />
+          <span className="flex items-center gap-1 text-sm text-slate-500">
+            {expanded ? 'Collapse' : 'Expand'}
+            <ChevronIcon open={expanded} />
+          </span>
         </button>
 
         {expanded && (
           <div className="px-6 pb-6 space-y-6">
-            {status === 'loading' && <p className="text-sm text-slate-500">Loading stats…</p>}
-            {status === 'error' && <p className="text-sm text-red-600">{errorMsg}</p>}
+            {status === 'loading' && <LoadingState label="Loading stats…" />}
+            {status === 'error' && <ErrorState message={errorMsg} />}
 
             {status === 'done' && stats && stats.services.length === 0 && (
-              <p className="text-sm text-slate-500">No data yet — upload a CSV to see stats here.</p>
+              <EmptyState
+                message="No data yet — upload a CSV to see stats here."
+                actionLabel="Go to Upload"
+                onAction={onGoToUpload}
+              />
             )}
 
             {status === 'done' && stats && stats.services.length > 0 && (
@@ -135,8 +130,13 @@ function Dashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {stats.services.map((s) => (
-                        <tr key={s.service_id} className="border-b border-slate-100 hover:bg-slate-50">
+                      {stats.services.map((s, i) => (
+                        <tr
+                          key={s.service_id}
+                          className={`border-b border-slate-100 hover:bg-slate-100 transition-colors ${
+                            i % 2 === 1 ? 'bg-slate-50' : ''
+                          }`}
+                        >
                           <td className="py-2 pr-4 font-medium text-slate-800">{s.service_name}</td>
                           <td className="py-2 pr-4 text-slate-600">{s.primary_agent}</td>
                           <td className="py-2 pr-4">{formatPct(s.uptime_pct)}</td>

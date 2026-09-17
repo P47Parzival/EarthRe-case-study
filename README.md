@@ -2,6 +2,23 @@
 
 ## Architecture
 
+```
+Upload UI (React)  ──POST /api/upload──▶  Vercel serverless function
+     │                                           │
+     │                                    parse → clean → batch-upsert
+     │                                           ▼
+     │                                    Supabase Postgres (`checks` table)
+     │                                           ▲
+Dashboard UI (React) ──GET /api/stats───────────┤
+                     ──GET /api/logs────────────┘
+```
+
+- **Frontend — React + Vite + Tailwind, in `frontend/`.** A single SPA with two tabs (Upload, Dashboard) instead of a router — there are only ever two screens and no deep-linking requirement, so `react-router` would be an unused dependency for what a couple of `useState` booleans already solve simply.
+- **Stateless processing — Vercel serverless functions, in `/api` at the repo root.** `api/upload.js` accepts the raw CSV as a `text/plain` body, delegates to `lib/processUpload.js` (parse → `lib/cleanRows.js` → batch-upsert), and returns a cleaning summary. `api/stats.js` and `api/logs.js` are separate read-only endpoints over the same persisted table. Chosen over a second cloud provider (AWS Lambda/GCP Cloud Function) specifically because it satisfies "a real, deployed, stateless serverless function" while keeping one platform, one deploy, one set of credentials for a weekend build — see `build_plan.md`'s stack table for the explicit reasoning.
+- **Persistence — Supabase (hosted Postgres), free tier.** One table (`checks`, `supabase/schema.sql`) with a unique constraint on `(service_id, checked_at, agent)` doing double duty as both the dedup rule and the idempotency guarantee for repeat uploads. Chosen over DynamoDB/Firestore because SQL aggregation (percentiles, group-by-hour, etc.) is exactly what the stats layer needs, and it's queryable directly from the dashboard via `@supabase/supabase-js` with no ORM.
+- **Deploy — Vercel, single project.** `vercel.json` at the repo root builds `frontend/` (`cd frontend && npm install && npm run build` → `frontend/dist`) while `/api` is auto-detected as serverless functions at the true repo root — one project, one live URL, not two separate deployments for frontend and backend.
+- **Pure-function core.** `lib/cleanRows.js`, `lib/computeStats.js`, and `lib/processUpload.js` are framework-agnostic — they take plain data in and return plain data out, so they were unit-tested with throwaway Node scripts (`scripts/*.js`) against the real CSVs before ever being wired into an HTTP handler. This is why Steps 3, 6, 7, and 8 could each be verified locally before any deploy.
+
 ## Data findings
 
 Found by direct inspection of the primary CSV (`monitoring_checks_9d_seed101.csv`) and confirmed generic (not hardcoded) by spot-checking `monitoring_checks_12d_seed505.csv` — both processed by `lib/cleanRows.js`:
@@ -55,3 +72,10 @@ Push to the connected GitHub repo's `main` branch — Vercel auto-deploys. `verc
 **Gotcha hit during deploy:** an explicit `export const config = { maxDuration: 60 }` in `api/upload.js` silently caused that one function to fail to deploy (404 in production, no error in build logs) because 60s exceeds the Hobby plan's function-duration limit. Removed it — the default (10s) is well within what the actual processing takes.
 
 ## What you'd do differently
+
+- **Push aggregation into SQL.** `api/stats.js` currently paginates the entire `checks` table into the function and computes uptime/percentiles/worst-hour in JS. That's fine at tens of thousands of rows, but a Postgres view or RPC function using `percentile_cont` and window functions would scale to millions of rows without ever pulling full row data out of the database.
+- **Streaming/chunked upload for large files.** The current `/api/upload` reads the whole CSV into memory as one `text/plain` body — fine for the files here (≤1.2MB) but would hit Vercel's request body limit on a much larger file. A real product would stream/chunk the upload.
+- **A visible admin/reset action.** Clearing test data currently requires running a throwaway script directly against Supabase (and even then, bulk deletes get blocked by this environment's own safety guardrails, which is the right default — but there's no in-product way to do it deliberately either). A small "reset demo data" action, gated appropriately, would make re-demoing cleaner.
+- **A real time-series view**, not just the single worst-hour card — an error-rate-over-time chart per service would make an incident's *shape* (not just its single worst hour) visible at a glance.
+- **Automated tests with a real test runner** (e.g. Vitest) for `lib/cleanRows.js` and `lib/computeStats.js`, replacing the throwaway `scripts/*.js` sanity checks. CI itself is out of scope per the spec, but the tests themselves aren't, and would catch regressions the manual scripts can't.
+- **A more defined conflict-resolution rule** for same-key duplicates with genuinely differing values (currently just counted via `conflicting_duplicates` and first-row-wins) — e.g. "latest re-transmission wins" instead of "first seen wins," if that turns out to matter for a real monitoring feed.

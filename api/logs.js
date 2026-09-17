@@ -22,6 +22,7 @@ export default async function handler(req, res) {
   if (!Number.isFinite(page) || page < 1) page = 1
   if (!Number.isFinite(pageSize) || pageSize < 1) pageSize = DEFAULT_PAGE_SIZE
   pageSize = Math.min(pageSize, MAX_PAGE_SIZE)
+  const ascending = req.query.order === 'asc'
 
   let rangeStartIso = null
   let rangeEndIso = null // exclusive
@@ -49,7 +50,7 @@ export default async function handler(req, res) {
       .select('service_id, service_name, checked_at, status_code, is_valid_check, latency_ms, agent, region', {
         count: 'exact',
       })
-      .order('checked_at', { ascending: false })
+      .order('checked_at', { ascending })
 
     if (rangeStartIso) query = query.gte('checked_at', rangeStartIso)
     if (rangeEndIso) query = query.lt('checked_at', rangeEndIso)
