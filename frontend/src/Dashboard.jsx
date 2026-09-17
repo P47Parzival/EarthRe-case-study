@@ -88,7 +88,7 @@ function Dashboard({ onGoToUpload }) {
 
             {status === 'done' && stats && stats.services.length === 0 && (
               <EmptyState
-                message="No data yet — upload a CSV to see stats here."
+                message="No data yet, upload a CSV to see stats here."
                 actionLabel="Go to Upload"
                 onAction={onGoToUpload}
               />
@@ -101,7 +101,7 @@ function Dashboard({ onGoToUpload }) {
                   <SummaryCard
                     label="Observed period"
                     value={`${stats.observed_period.days} days`}
-                    sub={`${new Date(stats.observed_period.start).toUTCString().slice(0, 16)} – ${new Date(
+                    sub={`${new Date(stats.observed_period.start).toUTCString().slice(0, 16)} to ${new Date(
                       stats.observed_period.end
                     )
                       .toUTCString()
@@ -133,9 +133,8 @@ function Dashboard({ onGoToUpload }) {
                       {stats.services.map((s, i) => (
                         <tr
                           key={s.service_id}
-                          className={`border-b border-slate-100 hover:bg-slate-100 transition-colors ${
-                            i % 2 === 1 ? 'bg-slate-50' : ''
-                          }`}
+                          className={`border-b border-slate-100 hover:bg-slate-100 transition-colors ${i % 2 === 1 ? 'bg-slate-50' : ''
+                            }`}
                         >
                           <td className="py-2 pr-4 font-medium text-slate-800">{s.service_name}</td>
                           <td className="py-2 pr-4 text-slate-600">{s.primary_agent}</td>
@@ -163,7 +162,7 @@ function Dashboard({ onGoToUpload }) {
                   <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 text-sm">
                     <p className="font-medium text-amber-900">Worst hour</p>
                     <p className="text-amber-800 mt-1">
-                      {stats.worst_hour.service_name} — {formatHour(stats.worst_hour.hour)} —{' '}
+                      {stats.worst_hour.service_name}: {formatHour(stats.worst_hour.hour)}: {' '}
                       {stats.worst_hour.error_rate_pct.toFixed(0)}% error rate ({stats.worst_hour.bad_checks}/
                       {stats.worst_hour.total_checks} checks failed)
                     </p>
