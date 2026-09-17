@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import LogsSection from './LogsSection.jsx'
 
 function formatPct(value) {
   return value == null ? '—' : `${value.toFixed(2)}%`
@@ -80,7 +81,7 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 space-y-6">
-      <div className="max-w-5xl mx-auto bg-white border border-slate-200 rounded-lg shadow-sm">
+      <div className="max-w-5xl mx-auto bg-white border border-slate-200 rounded-lg shadow-sm mb-6">
         <button
           onClick={() => setExpanded((e) => !e)}
           className="w-full flex items-center justify-between px-6 py-4 text-left"
@@ -173,6 +174,8 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      <LogsSection />
     </div>
   )
 }
