@@ -71,7 +71,7 @@ Create a `.env.local` at the repo root with the two variables above to run any o
 ### Redeploy
 Push to the connected GitHub repo's `main` branch — Vercel auto-deploys. `vercel.json` at the repo root builds `frontend/` (`cd frontend && npm install && npm run build`, output `frontend/dist`) while `/api` at the true repo root is picked up automatically as serverless functions.
 
-**Gotcha hit during deploy:** an explicit `export const config = { maxDuration: 60 }` in `api/upload.js` silently caused that one function to fail to deploy (404 in production, no error in build logs) because 60s exceeds the Hobby plan's function-duration limit. Removed it — the default (10s) is well within what the actual processing takes.
+**Gotcha hit during deploy:** an explicit `export const config = { maxDuration: 60 }` in `api/upload.js` silently caused that one function to fail to deploy (404 in production, no error in build logs) because 60s exceeds the Hobby plan's function-duration limit. Removed it and the default (10s) is well within what the actual processing takes.
 
 ## What you'd do differently
 
@@ -81,3 +81,14 @@ Push to the connected GitHub repo's `main` branch — Vercel auto-deploys. `verc
 - **A real time-series view**, not just the single worst-hour card, an error-rate-over-time chart per service would make an incident's *shape* (not just its single worst hour) visible at a glance.
 - **Automated tests with a real test runner** (e.g. Vitest) for `lib/cleanRows.js` and `lib/computeStats.js`, replacing the throwaway `scripts/*.js` sanity checks. CI itself is out of scope per the spec, but the tests themselves aren't, and would catch regressions the manual scripts can't.
 - **A more defined conflict-resolution rule** for same-key duplicates with genuinely differing values (currently just counted via `conflicting_duplicates` and first-row-wins) e.g. "latest re-transmission wins" instead of "first seen wins," if that turns out to matter for a real monitoring feed.
+
+## Beyond scope: features i could have added but didnt, because they were not in requirements.
+
+These weren't built because the spec explicitly scoped them out or they weren't required, but in a production system they'd be natural next steps:
+
+- **Direct ingestion from cloud storage (S3/GCS).** In a real environment, monitoring agents would write logs directly to a cloud bucket. The serverless function could be triggered automatically by a bucket event (e.g., S3 `PutObject` → Lambda trigger) instead of requiring a human to download a CSV and manually upload it through a browser. This would eliminate the manual step entirely and make the pipeline continuous.
+- **Real-time monitoring with WebSocket/SSE.** The current flow is batch-oriented (upload a file → see results). A production SLA dashboard would subscribe to a live stream of health-check events and update stats in real time, so on-call engineers see issues as they happen, not after the fact.
+- **Automated SLA credit calculation.** The dashboard currently shows whether each service breached the 99.9% threshold, but stops short of computing the actual billing credit amount. In production, this would tie into the provider's credit schedule (e.g., <99.9% = 10% credit, <99.0% = 25% credit) and generate a line item automatically.
+- **Alerting and notifications.** When a service's uptime drops below the SLA threshold, the system could trigger an alert via Slack, email, or PagerDuty, so the billing or on-call team doesn't have to be staring at the dashboard to notice a breach.
+- **Exportable PDF/CSV reports.** Billing teams often need to attach SLA reports to invoices or share them with customers. A one-click "Export report" that generates a formatted PDF with the stats summary and incident timeline would be a high-value addition.
+- **Historical trend analysis.** Comparing SLA performance across multiple upload periods (e.g., month-over-month uptime trends) to spot services that are gradually degrading before they breach.
